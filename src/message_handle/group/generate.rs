@@ -4,7 +4,7 @@ use onebot_v11::api::payload::{ApiPayload, SendGroupMsg};
 use onebot_v11::event::message::GroupMessage;
 use onebot_v11::MessageSegment;
 use std::collections::HashMap;
-use std::fs::{create_dir_all, File, OpenOptions};
+use std::fs::{create_dir_all, File};
 use std::io::Write;
 use std::ops::Add;
 use std::path::Path;

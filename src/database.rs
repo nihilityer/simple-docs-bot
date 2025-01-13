@@ -15,7 +15,6 @@ pub struct Record {
     pub title: String,
     pub remark: Option<String>,
     pub created_at: DateTime<Local>,
-    pub updated_at: DateTime<Local>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -145,7 +144,7 @@ impl DatabaseHelp {
 
     pub async fn select_all_records(&self) -> Result<Vec<Record>> {
         let rows: Vec<Record> = sqlx::query_as(
-            "SELECT id, title, remark, created_at, updated_at FROM records ORDER BY created_at DESC",
+            "SELECT id, title, remark, created_at FROM records ORDER BY created_at DESC",
         )
         .fetch_all(&self.pool)
         .await?;
