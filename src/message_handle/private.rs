@@ -1,5 +1,6 @@
 use crate::config::CoreConfig;
 use crate::database::DatabaseHelp;
+use crate::status::BotStatus;
 use anyhow::Result;
 use onebot_v11::api::payload::ApiPayload;
 use onebot_v11::event::message::PrivateMessage;
@@ -25,12 +26,9 @@ pub async fn handle_private_message(
                 return Ok(None);
             }
             match data.text.as_str() {
-                "git" => {
-                    return crate::utils::git::auto_git_task(
-                        &config.git,
-                        admin_id,
-                    )
-                    .await
+                "git" => return crate::utils::git::auto_git_task(&config.git, admin_id).await,
+                "reset" => {
+                    database.update_status(BotStatus::WaitingCommand).await?;
                 }
                 _ => {}
             }
