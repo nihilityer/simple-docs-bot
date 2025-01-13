@@ -28,4 +28,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: nihilityer/simple-docs-bot:0.1.1
+          tags: nihilityer/simple-docs-bot:0.1.2

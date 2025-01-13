@@ -1,16 +1,18 @@
 use crate::database::DatabaseHelp;
 use crate::status::BotStatus;
+use crate::utils::json_parse;
+use crate::utils::json_parse::JsonDataType;
 use anyhow::Result;
 use chrono::Local;
 use onebot_v11::api::payload::ApiPayload;
 use onebot_v11::api::payload::SendGroupMsg;
 use onebot_v11::event::message::GroupMessage;
 use onebot_v11::MessageSegment;
+use reqwest::get;
 use std::fs::{create_dir_all, File};
 use std::io::Write;
 use std::path::Path;
-use reqwest::get;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 pub async fn handle_record_start(
     message: GroupMessage,
@@ -77,7 +79,9 @@ pub async fn handle_record_content(
     for msg in message.message {
         match msg {
             MessageSegment::Text { data } => {
-                database.record_content(uuid.clone(), data.text, "text".to_string()).await?;
+                database
+                    .record_content(uuid.clone(), data.text, "text".to_string())
+                    .await?;
             }
             MessageSegment::Image { data } => match data.url {
                 None => {
@@ -106,14 +110,31 @@ pub async fn handle_record_content(
                             "图片记录成功: {}\n",
                             &save_image_name
                         )));
-                        database.record_content(uuid.clone(), save_image_name, "image".to_string()).await?;
+                        database
+                            .record_content(uuid.clone(), save_image_name, "image".to_string())
+                            .await?;
                     } else {
                         error!("Download Image Error, Status Code: {}", response.status());
                         reply_messages.push(MessageSegment::text("图片获取失败"))
                     }
                 }
             },
+            MessageSegment::Json { data } => match json_parse::check_json_data_type(&data.data)? {
+                JsonDataType::WeChatShare => {
+                    let contents = json_parse::get_wechat_share_content(&data.data)?;
+                    for content in contents {
+                        database
+                            .record_content(uuid.clone(), content, "text".to_string())
+                            .await?;
+                    }
+                }
+                JsonDataType::Other => {
+                    warn!("Not Support Json Message: {:?}", data.data);
+                    reply_messages.push(MessageSegment::text("内容解析失败，此内容暂不支持"));
+                }
+            },
             other => {
+                warn!("Unsupported message: {:?}", other);
                 reply_messages.push(MessageSegment::text("此内容暂不支持记录:\n"));
                 reply_messages.push(other);
             }
@@ -150,16 +171,20 @@ pub async fn handle_record_remark(
             "2" => {
                 let record_user = if let Some(nickname) = message.sender.nickname {
                     nickname
-                } else { 
+                } else {
                     message.user_id.to_string()
                 };
-                database.set_record_remark(format!("（分享者：{}）", record_user), uuid).await?;
+                database
+                    .set_record_remark(format!("（分享者：{}）", record_user), uuid)
+                    .await?;
             }
             "3" => {
                 info!("recording remark skip");
             }
             record_user => {
-                database.set_record_remark(format!("（分享者：{}）", record_user), uuid).await?;
+                database
+                    .set_record_remark(format!("（分享者：{}）", record_user), uuid)
+                    .await?;
             }
         }
     }

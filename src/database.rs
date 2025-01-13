@@ -4,6 +4,7 @@ use anyhow::Result;
 use chrono::{DateTime, Local};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use tracing::info;
 
 pub struct DatabaseHelp {
     pool: PgPool,
@@ -124,6 +125,7 @@ impl DatabaseHelp {
         content: String,
         content_type: String,
     ) -> Result<()> {
+        info!("Record Content To {}: {}", uuid, content);
         sqlx::query("INSERT INTO content (uuid, content, content_type) VALUES ($1, $2, $3)")
             .bind(uuid)
             .bind(content)
