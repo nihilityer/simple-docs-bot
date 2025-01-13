@@ -6,10 +6,10 @@ use anyhow::Result;
 use onebot_v11::api::payload::ApiPayload;
 use onebot_v11::MessageSegment;
 use tracing::{debug, info, warn};
-use crate::database::DataBaseHelp;
+use crate::database::DatabaseHelp;
 use crate::status::BotStatus;
 
-pub async fn handle_group_message(message: GroupMessage, database: &DataBaseHelp) -> Result<Option<Vec<ApiPayload>>> {
+pub async fn handle_group_message(message: GroupMessage, database: &DatabaseHelp) -> Result<Option<Vec<ApiPayload>>> {
     info!("Recv Group Message From: {}", message.group_id);
     info!("Group Message Sender: {}", message.user_id);
     info!("Group Message Sender Info: {:?}", message.sender);

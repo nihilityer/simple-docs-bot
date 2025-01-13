@@ -5,7 +5,7 @@ use chrono::{DateTime, Local};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 
-pub struct DataBaseHelp {
+pub struct DatabaseHelp {
     pool: PgPool,
 }
 
@@ -25,7 +25,7 @@ pub struct Content {
     pub content_type: String,
 }
 
-impl DataBaseHelp {
+impl DatabaseHelp {
     pub async fn init(config: &DataBaseConfig) -> Result<Self> {
         let pool = PgPoolOptions::new()
             .max_connections(5)
@@ -34,7 +34,7 @@ impl DataBaseHelp {
                 config.username, config.password, config.host, config.port, config.database
             ))
             .await?;
-        Ok(DataBaseHelp { pool })
+        Ok(DatabaseHelp { pool })
     }
 
     pub async fn bot_admin(&self) -> Result<i64> {

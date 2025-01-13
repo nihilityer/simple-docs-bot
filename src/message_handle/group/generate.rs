@@ -1,4 +1,4 @@
-use crate::database::{DataBaseHelp, Record};
+use crate::database::{DatabaseHelp, Record};
 use anyhow::Result;
 use onebot_v11::api::payload::{ApiPayload, SendGroupMsg};
 use onebot_v11::event::message::GroupMessage;
@@ -11,7 +11,7 @@ use std::path::Path;
 
 pub async fn handle_generate(
     message: GroupMessage,
-    database: &DataBaseHelp,
+    database: &DatabaseHelp,
 ) -> Result<Option<Vec<ApiPayload>>> {
     let records = database.select_all_records().await?;
     generate_by_records(message, database, records).await
@@ -19,7 +19,7 @@ pub async fn handle_generate(
 
 async fn generate_by_records(
     message: GroupMessage,
-    database: &DataBaseHelp,
+    database: &DatabaseHelp,
     records: Vec<Record>,
 ) -> Result<Option<Vec<ApiPayload>>> {
     let mut record_order_by_month: HashMap<String, Vec<Record>> = HashMap::new();

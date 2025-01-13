@@ -1,4 +1,4 @@
-use crate::database::DataBaseHelp;
+use crate::database::DatabaseHelp;
 use crate::status::BotStatus;
 use anyhow::Result;
 use chrono::Local;
@@ -14,7 +14,7 @@ use tracing::{error, info};
 
 pub async fn handle_record_start(
     message: GroupMessage,
-    database: &DataBaseHelp,
+    database: &DatabaseHelp,
 ) -> Result<Option<Vec<ApiPayload>>> {
     database.update_status(BotStatus::RecordTitle).await?;
     database.set_record_user_id(message.user_id).await?;
@@ -30,7 +30,7 @@ pub async fn handle_record_start(
 
 pub async fn handle_record_title(
     message: GroupMessage,
-    database: &DataBaseHelp,
+    database: &DatabaseHelp,
 ) -> Result<Option<Vec<ApiPayload>>> {
     if !database.check_record_user_id(message.user_id).await? {
         info!("not recording user");
@@ -66,7 +66,7 @@ pub async fn handle_record_title(
 
 pub async fn handle_record_content(
     message: GroupMessage,
-    database: &DataBaseHelp,
+    database: &DatabaseHelp,
 ) -> Result<Option<Vec<ApiPayload>>> {
     if !database.check_record_user_id(message.user_id).await? {
         info!("not recording user");
@@ -130,7 +130,7 @@ pub async fn handle_record_content(
 
 pub async fn handle_record_remark(
     message: GroupMessage,
-    database: &DataBaseHelp,
+    database: &DatabaseHelp,
 ) -> Result<Option<Vec<ApiPayload>>> {
     if !database.check_record_user_id(message.user_id).await? {
         info!("not recording user");

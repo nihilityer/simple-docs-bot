@@ -18,6 +18,7 @@ pub struct CoreConfig {
     pub log: Vec<LogConfig>,
     pub data_base: DataBaseConfig,
     pub bot_ws: WsConfig,
+    pub git: GitConfig,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -29,12 +30,34 @@ pub struct DataBaseConfig{
     pub database: String,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct GitConfig {
+    pub repository_dir: String,
+    pub url: String,
+    pub username: String,
+    pub password: String,
+    pub user_email: String,
+}
+
 impl Default for CoreConfig {
     fn default() -> Self {
         CoreConfig {
             log: vec![LogConfig::default()],
             data_base: DataBaseConfig::default(),
             bot_ws: WsConfig::default(),
+            git: GitConfig::default(),
+        }
+    }
+}
+
+impl Default for GitConfig {
+    fn default() -> Self {
+        GitConfig {
+            repository_dir: ".".to_string(),
+            url: "https://example.com:443/example/example".to_string(),
+            username: "example".to_string(),
+            password: "example".to_string(),
+            user_email: "example@mail.example.com".to_string(),
         }
     }
 }
