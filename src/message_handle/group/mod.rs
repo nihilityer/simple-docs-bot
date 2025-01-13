@@ -19,9 +19,16 @@ pub async fn handle_group_message(message: GroupMessage, database: &DatabaseHelp
     debug!("Group Message: {:?}", message);
     match database.bot_status().await? {
         BotStatus::WaitingCommand => {
-            if message.message.len() == 1 {
-                if let MessageSegment::Text { data } = message.message[0].clone() {
-                    match data.text.as_str() { 
+            if message.message.len() == 2 {
+                if let MessageSegment::At { data } = message.message[0].clone() {
+                    if data.qq != message.self_id.to_string() { 
+                        return Ok(None);
+                    }
+                } else { 
+                    return Ok(None);
+                }
+                if let MessageSegment::Text { data } = message.message[1].clone() {
+                    match data.text.trim() {
                         "记录" | "record" | "rc" => {
                             info!("Recv Record Command");
                             return record::handle_record_start(message, database).await;
