@@ -9,7 +9,7 @@ use tracing::log::{error, info};
 pub async fn auto_git_task(config: &GitConfig, admin_id: i64) -> Result<Option<Vec<ApiPayload>>> {
     let dir = config.repository_dir.clone();
     let username = config.username.clone();
-    let password = config.password.clone();
+    let password = config.password.clone().replace("@", "%40");
     let url = config.url.clone();
     let output = Command::new("git")
         .current_dir(&dir)
