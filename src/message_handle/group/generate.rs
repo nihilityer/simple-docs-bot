@@ -105,7 +105,7 @@ index: false
                 if let Some(remark) = record.remark {
                     writeln!(file, "{}\n", remark)?;
                 }
-                let contents = database.select_all_content_by_uuid(record.id).await?;
+                let contents = database.select_all_content_by_uuid(&record.id).await?;
                 for content in contents {
                     match content.content_type.as_str() {
                         "text" => writeln!(file, "{}\n", content.content)?,

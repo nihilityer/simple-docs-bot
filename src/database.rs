@@ -146,20 +146,51 @@ impl DatabaseHelp {
 
     pub async fn select_all_records(&self) -> Result<Vec<Record>> {
         let rows: Vec<Record> = sqlx::query_as(
-            "SELECT id, title, remark, created_at FROM records ORDER BY created_at DESC",
+            "SELECT id, title, remark, created_at FROM records ORDER BY created_at ASC",
         )
         .fetch_all(&self.pool)
         .await?;
         Ok(rows)
     }
 
-    pub async fn select_all_content_by_uuid(&self, uuid: String) -> Result<Vec<Content>> {
+    pub async fn select_records_by_date(
+        &self,
+        start_date: DateTime<Local>,
+        end_date: DateTime<Local>,
+    ) -> Result<Vec<Record>> {
+        let rows: Vec<Record> = sqlx::query_as(
+            "SELECT id, title, remark, created_at FROM records WHERE created_at >= $1 and created_at <= $2 ORDER BY created_at ASC",
+        )
+            .bind(start_date)
+            .bind(end_date)
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(rows)
+    }
+
+    pub async fn select_all_content_by_uuid(&self, uuid: &String) -> Result<Vec<Content>> {
         let rows: Vec<Content> = sqlx::query_as(
-            "SELECT uuid, content, content_type FROM content WHERE uuid = $1 and delete_status = false ORDER BY create_time DESC",
+            "SELECT uuid, content, content_type FROM content WHERE uuid = $1 and delete_status = false ORDER BY create_time ASC",
         )
             .bind(uuid)
             .fetch_all(&self.pool)
             .await?;
         Ok(rows)
+    }
+
+    pub async fn delete_record(&self, uuid: &String) -> Result<()> {
+        sqlx::query("DELETE FROM records WHERE id = $1")
+            .bind(uuid)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn delete_content(&self, uuid: &String) -> Result<()> {
+        sqlx::query("DELETE FROM content WHERE uuid = $1")
+            .bind(uuid)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 }

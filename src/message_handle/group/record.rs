@@ -2,8 +2,8 @@ use crate::database::DatabaseHelp;
 use crate::status::BotStatus;
 use crate::utils::json_parse;
 use crate::utils::json_parse::JsonDataType;
-use anyhow::Result;
-use chrono::Local;
+use anyhow::{Error, Result};
+use chrono::{Duration, Local, TimeZone};
 use onebot_v11::api::payload::ApiPayload;
 use onebot_v11::api::payload::SendGroupMsg;
 use onebot_v11::event::message::GroupMessage;
@@ -11,6 +11,7 @@ use onebot_v11::MessageSegment;
 use reqwest::get;
 use std::fs::{create_dir_all, File};
 use std::io::Write;
+use std::ops::Add;
 use std::path::Path;
 use tracing::{error, info, warn};
 
@@ -192,6 +193,66 @@ pub async fn handle_record_remark(
     Ok(Some(vec![ApiPayload::SendGroupMsg(SendGroupMsg {
         group_id: message.group_id,
         message: vec![MessageSegment::text("记录成功！")],
+        auto_escape: false,
+    })]))
+}
+
+pub async fn handle_record_select(
+    message: GroupMessage,
+    database: &DatabaseHelp,
+) -> Result<Option<Vec<ApiPayload>>> {
+    let now = Local::now();
+    let start_native = now
+        .date_naive()
+        .and_hms_opt(0, 0, 0)
+        .ok_or(Error::msg("start date get error"))?;
+    let end_native = (now.date_naive() + Duration::days(1))
+        .and_hms_opt(0, 0, 0)
+        .ok_or(Error::msg("end date get error"))?;
+    let start = Local
+        .from_local_datetime(&start_native)
+        .single()
+        .ok_or(Error::msg("single datetime get error"))?;
+    let end = Local
+        .from_local_datetime(&end_native)
+        .single()
+        .ok_or(Error::msg("single datetime get error"))?;
+    let records = database.select_records_by_date(start, end).await?;
+    let mut reply_text = String::from("今日已记录：\n");
+    for record in records {
+        reply_text = reply_text.add(record.title.as_str()).add("\n");
+    }
+    Ok(Some(vec![ApiPayload::SendGroupMsg(SendGroupMsg {
+        group_id: message.group_id,
+        message: vec![MessageSegment::text(reply_text)],
+        auto_escape: false,
+    })]))
+}
+
+pub async fn handle_record_undo(
+    message: GroupMessage,
+    database: &DatabaseHelp,
+) -> Result<Option<Vec<ApiPayload>>> {
+    let admin_id = database.bot_admin().await?;
+    if admin_id != message.user_id {
+        warn!("Group Message Sender Error: {:?}", message.sender);
+        return Ok(Some(vec![ApiPayload::SendGroupMsg(SendGroupMsg {
+            group_id: message.group_id,
+            message: vec![MessageSegment::text("非管理员不可撤销")],
+            auto_escape: false,
+        })]));
+    }
+    let records = database.select_all_records().await?;
+    let last_record = records.last().ok_or(Error::msg("last record"))?;
+    let uuid = last_record.id.clone();
+    database.delete_record(&uuid).await?;
+    database.delete_content(&uuid).await?;
+    Ok(Some(vec![ApiPayload::SendGroupMsg(SendGroupMsg {
+        group_id: message.group_id,
+        message: vec![MessageSegment::text(format!(
+            "{}\n已删除",
+            last_record.title
+        ))],
         auto_escape: false,
     })]))
 }
