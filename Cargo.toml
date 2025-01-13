@@ -19,3 +19,4 @@ reqwest = {version = "0.12", features = ["rustls-tls"]}
 chrono = "0.4"
 uuid = {version = "1.11", features = ["v4", "fast-rng", "macro-diagnostics"]}
 serde_with = "3.12.0"
+openssl = {version = "0.10", features = ["vendored"]}
