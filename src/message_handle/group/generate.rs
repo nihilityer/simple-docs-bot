@@ -1,4 +1,3 @@
-use crate::database::{DatabaseHelp, Record};
 use anyhow::Result;
 use onebot_v11::api::payload::{ApiPayload, SendGroupMsg};
 use onebot_v11::event::message::GroupMessage;
@@ -8,18 +7,20 @@ use std::fs::{create_dir_all, File};
 use std::io::Write;
 use std::ops::Add;
 use std::path::Path;
+use std::sync::Arc;
+use crate::bot_help::{BotHelp, Record};
 
 pub async fn handle_generate(
     message: GroupMessage,
-    database: &DatabaseHelp,
+    bot_help: Arc<BotHelp>,
 ) -> Result<Option<Vec<ApiPayload>>> {
-    let records = database.select_all_records().await?;
-    generate_by_records(message, database, records).await
+    let records = bot_help.select_all_records().await?;
+    generate_by_records(message, bot_help, records).await
 }
 
 async fn generate_by_records(
     message: GroupMessage,
-    database: &DatabaseHelp,
+    bot_help: Arc<BotHelp>,
     records: Vec<Record>,
 ) -> Result<Option<Vec<ApiPayload>>> {
     let mut record_order_by_month: HashMap<String, Vec<Record>> = HashMap::new();
@@ -42,7 +43,7 @@ index: false
 
 ",
     );
-    let share_path = database.share_path().await?;
+    let share_path = bot_help.share_path().await?;
     let root_path = Path::new(&share_path);
     if !root_path.exists() {
         create_dir_all(root_path)?;
@@ -105,7 +106,7 @@ index: false
                 if let Some(remark) = record.remark {
                     writeln!(file, "{}\n", remark)?;
                 }
-                let contents = database.select_all_content_by_uuid(&record.id).await?;
+                let contents = bot_help.select_all_content_by_uuid(&record.id).await?;
                 for content in contents {
                     match content.content_type.as_str() {
                         "text" => writeln!(file, "{}\n", content.content)?,

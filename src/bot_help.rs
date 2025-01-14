@@ -2,12 +2,15 @@ use crate::config::DataBaseConfig;
 use crate::status::BotStatus;
 use anyhow::Result;
 use chrono::{DateTime, Local};
+use onebot_v11::connect::ws::WsConnect;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use std::sync::Arc;
 use tracing::info;
 
-pub struct DatabaseHelp {
+pub struct BotHelp {
     pool: PgPool,
+    pub ws_connect: Arc<WsConnect>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -25,8 +28,8 @@ pub struct Content {
     pub content_type: String,
 }
 
-impl DatabaseHelp {
-    pub async fn init(config: &DataBaseConfig) -> Result<Self> {
+impl BotHelp {
+    pub async fn init(config: &DataBaseConfig, ws_connect: Arc<WsConnect>) -> Result<Self> {
         let pool = PgPoolOptions::new()
             .max_connections(5)
             .connect(&format!(
@@ -34,7 +37,7 @@ impl DatabaseHelp {
                 config.username, config.password, config.host, config.port, config.database
             ))
             .await?;
-        Ok(DatabaseHelp { pool })
+        Ok(BotHelp { pool, ws_connect })
     }
 
     pub async fn bot_admin(&self) -> Result<i64> {

@@ -1,5 +1,6 @@
+use std::sync::Arc;
 use crate::config::CoreConfig;
-use crate::database::DatabaseHelp;
+use crate::bot_help::BotHelp;
 use crate::status::BotStatus;
 use anyhow::Result;
 use onebot_v11::api::payload::ApiPayload;
@@ -10,7 +11,7 @@ use tracing::{debug, info, warn};
 pub async fn handle_private_message(
     config: &CoreConfig,
     message: PrivateMessage,
-    database: &DatabaseHelp,
+    bot_help: Arc<BotHelp>,
 ) -> Result<Option<Vec<ApiPayload>>> {
     info!("Recv Private Message From: {}", message.user_id);
     info!("Private Message Sender Info: {:?}", message.sender);
@@ -20,7 +21,7 @@ pub async fn handle_private_message(
     debug!("Private Message: {:?}", message);
     if message.message.len() == 1 {
         if let MessageSegment::Text { data } = message.message[0].clone() {
-            let admin_id = database.bot_admin().await?;
+            let admin_id = bot_help.bot_admin().await?;
             if admin_id != message.user_id {
                 warn!("Private Message Sender Error: {:?}", message.sender);
                 return Ok(None);
@@ -28,7 +29,7 @@ pub async fn handle_private_message(
             match data.text.as_str() {
                 "git" => return crate::utils::git::auto_git_task(&config.git, admin_id).await,
                 "reset" => {
-                    database.update_status(BotStatus::WaitingCommand).await?;
+                    bot_help.update_status(BotStatus::WaitingCommand).await?;
                 }
                 _ => {}
             }
