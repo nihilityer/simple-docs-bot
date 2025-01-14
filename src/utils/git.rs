@@ -62,6 +62,23 @@ pub async fn auto_git_task(config: &GitConfig, admin_id: i64) -> Result<Option<V
 }
 
 pub fn git_init(config: &GitConfig) -> Result<()> {
+    let dir = format!("/docs/{}", config.repository_dir.clone());
+
+    let output = Command::new("git")
+        .arg("config")
+        .arg("--global")
+        .arg("--add")
+        .arg("safe.directory")
+        .arg(dir)
+        .output()?;
+    if !output.status.success() {
+        let err_msg = format!(
+            "set git safe.directory error: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        error!("{}", &err_msg);
+    }
+    
     let output = Command::new("git")
         .arg("config")
         .arg("--global")
