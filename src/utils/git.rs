@@ -62,6 +62,9 @@ pub async fn auto_git_task(config: &GitConfig, admin_id: i64) -> Result<Option<V
 }
 
 pub fn git_init(config: &GitConfig) -> Result<()> {
+    if config.repository_dir.as_str() == "dev" { 
+        return Ok(());
+    }
     let dir = format!("/docs/{}", config.repository_dir.clone());
 
     let output = Command::new("git")
