@@ -196,4 +196,12 @@ impl BotHelp {
             .await?;
         Ok(())
     }
+    
+    pub async fn set_tmp_content(&self, content: String) -> Result<()> {
+        sqlx::query("UPDATE bot_data SET data_value = $1 WHERE data_key = 'tmp_content'")
+            .bind(content)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
 }

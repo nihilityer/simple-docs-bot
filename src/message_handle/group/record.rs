@@ -2,6 +2,7 @@ use crate::bot_help::BotHelp;
 use crate::status::BotStatus;
 use crate::utils::json_parse;
 use crate::utils::json_parse::JsonDataType;
+use crate::utils::image;
 use crate::utils::reply_message;
 use anyhow::{Error, Result};
 use chrono::{Duration, Local, TimeZone};
@@ -9,12 +10,9 @@ use onebot_v11::api::payload::ApiPayload;
 use onebot_v11::api::payload::SendGroupMsg;
 use onebot_v11::event::message::GroupMessage;
 use onebot_v11::MessageSegment;
-use reqwest::get;
-use std::fs::{create_dir_all, File};
-use std::io::Write;
 use std::ops::Add;
-use std::path::Path;
 use std::sync::Arc;
+use onebot_v11::message::segment::{ImageData, JsonData, TextData};
 use tracing::{error, info, warn};
 
 static COMPLETE_CONTENT_RECORD_REPLY: &str = "内容记录完成，如果还需记录请回复：1\n当前记录者做为署名者请回复：2\n跳过署名请回复：3\n修改署名者请直接输入";
@@ -81,70 +79,7 @@ pub async fn handle_record_content(
     }
     let mut reply_messages = Vec::<MessageSegment>::new();
     let uuid = bot_help.recording_uuid().await?;
-    for msg in message.message {
-        match msg {
-            MessageSegment::Text { data } => {
-                bot_help
-                    .record_content(uuid.clone(), data.text, "text".to_string())
-                    .await?;
-            }
-            MessageSegment::Image { data } => match data.url {
-                None => {
-                    reply_messages.push(MessageSegment::text("图片信息获取失败:\n"));
-                }
-                Some(url) => {
-                    let image_save_path = format!(
-                        "{}/{}/{}",
-                        bot_help.share_path().await?,
-                        Local::now().format("%Y-%m"),
-                        uuid,
-                    );
-                    let save_path = Path::new(&image_save_path);
-                    if !save_path.exists() {
-                        create_dir_all(save_path)?;
-                    }
-                    let image_type = data.file.split(".").last().unwrap();
-                    let save_image_name = format!("{}.{}", uuid::Uuid::new_v4(), image_type);
-                    let response = get(url).await?;
-
-                    if response.status().is_success() {
-                        let mut file = File::create(save_path.join(&save_image_name))?;
-                        let content = response.bytes().await?;
-                        file.write_all(&content)?;
-                        reply_messages.push(MessageSegment::text(format!(
-                            "图片记录成功: {}\n",
-                            &save_image_name
-                        )));
-                        bot_help
-                            .record_content(uuid.clone(), save_image_name, "image".to_string())
-                            .await?;
-                    } else {
-                        error!("Download Image Error, Status Code: {}", response.status());
-                        reply_messages.push(MessageSegment::text("图片获取失败"))
-                    }
-                }
-            },
-            MessageSegment::Json { data } => match json_parse::check_json_data_type(&data.data)? {
-                JsonDataType::WeChatShare => {
-                    let contents = json_parse::get_wechat_share_content(&data.data)?;
-                    for content in contents {
-                        bot_help
-                            .record_content(uuid.clone(), content, "text".to_string())
-                            .await?;
-                    }
-                }
-                JsonDataType::Other => {
-                    warn!("Not Support Json Message: {:?}", data.data);
-                    reply_messages.push(MessageSegment::text("内容解析失败，此内容暂不支持"));
-                }
-            },
-            other => {
-                warn!("Unsupported message: {:?}", other);
-                reply_messages.push(MessageSegment::text("此内容暂不支持记录:\n"));
-                reply_messages.push(other);
-            }
-        }
-    }
+    handle_record_message_list_content(&message, &bot_help, &mut reply_messages, &uuid).await?;
     bot_help.update_status(BotStatus::RecordRemark).await?;
     reply_messages.push(MessageSegment::text(COMPLETE_CONTENT_RECORD_REPLY));
     Ok(Some(vec![ApiPayload::SendGroupMsg(SendGroupMsg {
@@ -152,6 +87,80 @@ pub async fn handle_record_content(
         message: reply_messages,
         auto_escape: false,
     })]))
+}
+
+async fn handle_record_message_list_content(message: &GroupMessage, bot_help: &Arc<BotHelp>, reply_messages: &mut Vec<MessageSegment>, uuid: &String) -> Result<(), Error> {
+    for msg in message.message.iter() {
+        match msg {
+            MessageSegment::Text { data } => handle_text_content(bot_help, uuid, data.clone()).await?,
+            MessageSegment::Image { data } => handle_image_content(bot_help, reply_messages, uuid, data.clone()).await?,
+            MessageSegment::Json { data } => handle_json_content(bot_help, reply_messages, uuid, data).await?,
+            other => {
+                warn!("Unsupported message: {:?}", other);
+                reply_messages.push(MessageSegment::text("此内容暂不支持记录:\n"));
+                reply_messages.push(other.clone());
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn handle_text_content(bot_help: &Arc<BotHelp>, uuid: &str, data: TextData) -> Result<(), Error> {
+    bot_help
+        .record_content(uuid.to_string(), data.text, "text".to_string())
+        .await?;
+    Ok(())
+}
+
+async fn handle_json_content(bot_help: &Arc<BotHelp>, reply_messages: &mut Vec<MessageSegment>, uuid: &str, data: &JsonData) -> Result<(), Error> {
+    match json_parse::check_json_data_type(&data.data)? {
+        JsonDataType::WeChatShare => {
+            let contents = json_parse::get_wechat_share_content(&data.data)?;
+            for content in contents {
+                bot_help
+                    .record_content(uuid.to_string(), content, "text".to_string())
+                    .await?;
+            }
+        }
+        JsonDataType::Other => {
+            warn!("Not Support Json Message: {:?}", data.data);
+            reply_messages.push(MessageSegment::text("内容解析失败，此内容暂不支持"));
+        }
+    }
+    Ok(())
+}
+
+async fn handle_image_content(bot_help: &Arc<BotHelp>, reply_messages: &mut Vec<MessageSegment>, uuid: &String, data: ImageData) -> Result<(), Error> {
+    match data.url {
+        None => {
+            reply_messages.push(MessageSegment::text("图片信息获取失败:\n"));
+        }
+        Some(url) => {
+            let image_save_path = format!(
+                "{}/{}/{}",
+                bot_help.share_path().await?,
+                Local::now().format("%Y-%m"),
+                uuid,
+            );
+            let image_type = data.file.split(".").last().unwrap();
+            match image::get_image(url, image_type.to_string(), image_save_path).await {
+                Ok(save_image_name) => {
+                    reply_messages.push(MessageSegment::text(format!(
+                        "图片记录成功: {}\n",
+                        &save_image_name
+                    )));
+                    bot_help
+                        .record_content(uuid.clone(), save_image_name, "image".to_string())
+                        .await?;
+                },
+                Err(e) => {
+                    error!("Image Get Error: {}", e);
+                    reply_messages.push(MessageSegment::text("图片获取失败"))
+                }
+            };
+        }
+    }
+    Ok(())
 }
 
 pub async fn handle_record_remark(
@@ -271,8 +280,9 @@ pub async fn handle_reply_record(
         reply_message::get_reply_original_message(message_id, bot_help.clone()).await?;
     if original_message.message.len() == 1 {
         match original_message.message[0].clone() {
-            MessageSegment::Text { .. } => {}
-            MessageSegment::Image { .. } => {}
+            MessageSegment::Text { data } => {
+                bot_help.set_tmp_content(data.text).await?;
+            }
             MessageSegment::Json { data } => match json_parse::check_json_data_type(&data.data)? {
                 JsonDataType::WeChatShare => {
                     let contents = json_parse::get_wechat_share_content(&data.data)?;
